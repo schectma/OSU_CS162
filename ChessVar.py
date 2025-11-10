@@ -289,13 +289,21 @@ class ChessVar:
         Verifies occupant of specified cell has specific color.
         :param tup: tuple
         :param color: int
-        :return: bool
+        :return: bool - True if cell is empty or contains enemy piece, False if contains friendly piece
         """
         for cell in self._board:
             if self._board[cell]["xy"] == tup:
-                if self._board[cell]["piece"] is not None:
-                    if self._board[cell]["piece"].get_color() == color:
-                        return False
+                occupant = self._board[cell]["piece"]
+                # If cell is empty, it's valid (no friendly piece blocking)
+                if occupant is None:
+                    return True
+                # If occupant is same color -> blocked by friendly
+                if occupant.get_color() == color:
+                    return False
+                # Occupant is enemy -> not blocked (capture eligibility handled elsewhere)
+                return True
+        # If cell coordinate not found, treat as blocked/invalid
+        return False
 
     def check_path(self, origin, destination):
         """
