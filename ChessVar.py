@@ -318,86 +318,36 @@ class ChessVar:
         active_color = self._active_piece.get_color()
         active_symbol = self._active_piece.get_symbol().lower()
 
-        current_cell = [origin_xy[0], origin_xy[1]]
-        final_cell = [dest_xy[0], dest_xy[1]]
-
-        # Pawn -- if diagonal does NOT contain opposition piece, return false
-        if active_symbol == "p":
-            # check for diagonal move
-            if abs(x_delta) == abs(y_delta):
-                current_cell = [current_cell[0] + x_delta, current_cell[1] + y_delta]
-                current_tuple = (current_cell[0], current_cell[1])
-                # if diag. dest. is none or contains friendly
-                for cell in self._board:
-                    if self._board[cell]["xy"] == current_tuple:
-                        if self._board[cell]["piece"] is None:
-                            return False
-                return self.check_cell(current_tuple, active_color)
-
-        # Bishop
-        if active_symbol == "b":
-            while current_cell != final_cell:
-                current_cell = [current_cell[0] + 1, current_cell[1] + 1]
-                current_tuple = (current_cell[0], current_cell[1])
-                return self.check_cell(current_tuple, active_color)
-
-        # Rook
-        if active_symbol == "r":
-            while current_cell != final_cell:
-                if x_delta == 0:
-                    if y_delta < 0:
-                        current_cell = [current_cell[0], current_cell[1] - 1]
-                    if y_delta > 0:
-                        current_cell = [current_cell[0], current_cell[1] + 1]
-                if y_delta == 0:
-                    if x_delta < 0:
-                        current_cell = [current_cell[0] - 1, current_cell[1]]
-                    if x_delta > 0:
-                        current_cell = [current_cell[0] + 1, current_cell[1]]
-
-                current_tuple = (current_cell[0], current_cell[1])
-                return self.check_cell(current_tuple, active_color)
-
-        # Queen
-        if active_symbol == "q":
-            while current_cell != final_cell:
-                # N/S
-                if x_delta == 0:
-                    if y_delta < 0:
-                        current_cell = [current_cell[0], current_cell[1] - 1]
-                    if y_delta > 0:
-                        current_cell = [current_cell[0], current_cell[1] + 1]
-
-                # E/W
-                if y_delta == 0:
-                    if x_delta < 0:
-                        current_cell = [current_cell[0] - 1, current_cell[1]]
-                    if x_delta > 0:
-                        current_cell = [current_cell[0] + 1, current_cell[1]]
-
-                # Diagonal
-                if abs(x_delta) == abs(y_delta):
-                    # NE
-                    if x_delta > 0 and y_delta > 0:
-                        current_cell = [current_cell[0] + 1, current_cell[1] + 1]
-                    # SE
-                    if x_delta > 0 > y_delta:
-                        current_cell = [current_cell[0] + 1, current_cell[1] - 1]
-                    # SW
-                    if x_delta < 0 and y_delta < 0:
-                        current_cell = [current_cell[0] - 1, current_cell[1] - 1]
-                    # NW
-                    if x_delta < 0 < y_delta:
-                        current_cell = [current_cell[0] - 1, current_cell[1] + 1]
-
-                current_tuple = (current_cell[0], current_cell[1])
-                return self.check_cell(current_tuple, active_color)
-
-        # Knight bypasses all pieces in path. King's radius is 1,
-        # so destination occupant check in parent method will detect friendly.
-        # Pawns will be handled similarly.
-        else:
+        # Knights can jump over pieces
+        if active_symbol == "n":
             return True
+
+        # King moves only one square, no intermediate squares to check
+        if active_symbol == "k":
+            return True
+
+        # Helper function to get step direction
+        def get_step():
+            step_x = 0 if x_delta == 0 else (1 if x_delta > 0 else -1)
+            step_y = 0 if y_delta == 0 else (1 if y_delta > 0 else -1)
+            return step_x, step_y
+
+        # Start from the square after origin
+        current = [origin_xy[0], origin_xy[1]]
+        step_x, step_y = get_step()
+        
+        # Move one step toward destination
+        current[0] += step_x
+        current[1] += step_y
+
+        # Check all squares between origin and destination (exclusive)
+        while (current[0], current[1]) != dest_xy:
+            if not self.check_cell((current[0], current[1]), active_color):
+                return False
+            current[0] += step_x
+            current[1] += step_y
+
+        return True
 
     def get_trajectory(self, destination):
         """
@@ -485,8 +435,11 @@ class ChessVar:
                 return True
         # King
         if piece_type.lower() == "k":
-            if (abs(x_delta) == 1 and abs(y_delta == 1)) or (x_delta == 0 and abs(y_delta) == 1) or (
-                    abs(x_delta) == 1 and y_delta == 0):
+            # Diagonal move: one square in any direction
+            if abs(x_delta) == 1 and abs(y_delta) == 1:
+                return True
+            # Orthogonal move: one square vertically or horizontally
+            if (x_delta == 0 and abs(y_delta) == 1) or (abs(x_delta) == 1 and y_delta == 0):
                 return True
 
         return False
@@ -519,6 +472,8 @@ class ChessVar:
         :param destination: string
         :return: N/A
         """
+    
+        self._victims = []
         center = self._board[destination]["xy"]
         for cell in self._board:
             cell_xy = self._board[cell]["xy"]
