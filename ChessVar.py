@@ -439,21 +439,30 @@ class ChessVar:
             # Prevent lateral movement.
             if y_delta == 0:
                 return False
-            # Prevent forward capture.
-            if x_delta == 0 and self._board[destination]["piece"] is not None:
-                return False
 
-            # Set threshold based on turn count.
-            y_thresh = 1
-            if self._active_piece.get_move_count() == 0:
-                y_thresh = 2
-
-            # Prevent backwards movement.
+            # Determine forward direction: white ('p') moves +y, black ('P') moves -y
             if ((piece_type == "P") and (y_delta > 0)) or ((piece_type == "p") and (y_delta < 0)):
                 return False
 
-            if abs(y_delta) <= y_thresh:
-                return True
+            # Straight move (no change in x): destination must be empty
+            if x_delta == 0:
+                if self._board[destination]["piece"] is not None:
+                    return False
+                y_thresh = 1
+                if self._active_piece.get_move_count() == 0:
+                    y_thresh = 2
+                if abs(y_delta) <= y_thresh:
+                    return True
+                return False
+
+            # Diagonal capture: must be one step diagonally and destination must have enemy
+            if abs(x_delta) == 1 and abs(y_delta) == 1:
+                target = self._board[destination]["piece"]
+                if target is None:
+                    return False
+                return target.get_color() != self._active_piece.get_color()
+
+            return False
 
             # Bishop
         if piece_type.lower() == "b":
